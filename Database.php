@@ -118,7 +118,7 @@ Class Database implements Cruds {
         }
     }
 
-    public function get_all (){        
+    public function getCollection (){        
             $sql = "SELECT * FROM `{$this->table_name}` ORDER BY id DESC";
             $result = $this->db->query($sql);
             if($result === false) {
