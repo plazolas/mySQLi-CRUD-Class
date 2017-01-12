@@ -1,41 +1,30 @@
 <?php
+//namespace Model;
 
-Class Database implements Cruds {
+require_once __DIR__.'/CrudsInterface.php';
+require_once __DIR__.'/Config.php';
+
+Class Database implements CrudsInterface {
 
     public  $db;
-    private $_server = '';
-    private $_user = '';
-    private $_password = '';
-    private $_database = '';
-    private $_config = '';
 
     function __construct() {
-        if(file_exists(__DIR__.'../config/config.php')){
-            $config = require __DIR__ . '/../config/config.php';
-            print_r($config);exit;
-        } else {
-            trigger_error('Missing config.php file: ', E_USER_ERROR);
-        }
-        
-        
-            $this->_server   = config['server'];
-            $this->_user     = config['user'];
-            $this->_password = config['password'];
-            $this->_database = config['database'];
-        
+        $this->open();
+    }
+
+    public function open() {
         if (!is_object($this->db)) {
-            $mysqli = new mysqli($this->_server, $this->_user, $this->_password, $this->_database);
+            $config = new Config();
+            //echo $config->server." ".$config->user." ".$config->password." ".$config->database." ";exit;
+            $mysqli = new mysqli($config->server, $config->user, $config->password, $config->database);
             if ($mysqli->connect_error) {
-                trigger_error('Database connection failed: ' . $mysqli->connect_error, E_USER_ERROR);
+                error_log('Database connection failed: ' . $mysqli->connect_error);
                 return false;
             }
             $this->db = $mysqli;
-            return $this->db;
-        } else {
-            return $this->db;
         }
     }
-
+    
     public function close() {
         $this->db->close();
         unset($this->db);
@@ -43,15 +32,15 @@ Class Database implements Cruds {
     
     public function create(stdClass $Obj) {
         if (!is_object($Obj)) {
-            trigger_error(__METHOD__ . ' Invalid input expecting stdClass object: ', E_USER_WARNING);
+            error_log(__METHOD__ . ' Invalid input expecting stdClass object: ');
             return false;
         }
         if (count(get_object_vars($Obj)) != count($this->fields)) {
-            trigger_error(__METHOD__ . ' Invalid number of fields to insert: ', E_USER_ERROR);
+            error_log(__METHOD__ . ' Invalid number of fields to insert: '.print_r($Obj,true));
             return false;
         }
         $sql = "INSERT INTO `{$this->table_name}` (";
-        foreach ($this->fields as $field) {
+        foreach ($Obj as $field => $value) {
             $sql .= $field . ",";
         }
         $sql = substr($sql, 0, -1);
@@ -63,7 +52,7 @@ Class Database implements Cruds {
         $sql .= ")";
         $result = $this->db->query($sql);
         if ($result === false) {
-            trigger_error(__METHOD__ . ' DB ERROR query: ', E_USER_ERROR);
+            error_log(__METHOD__ . ' DB ERROR query: '.$sql);
             return false;
         } else {
             return $this->db->insert_id;
@@ -72,7 +61,7 @@ Class Database implements Cruds {
 
     public function set (stdClass $Obj){
         if(!is_object($Obj) || $Obj->id == '' || $Obj->id == 0) {
-            trigger_error(__METHOD__ . ' Invalid input expecting stdClass object: ' , E_USER_WARNING);
+            error_log(__METHOD__ . ' Invalid input expecting stdClass object: ' );
             return false;
         }
         $sql = "UPDATE `{$this->table_name}` SET ";
@@ -84,7 +73,7 @@ Class Database implements Cruds {
         $sql .= " WHERE `id` = ".$Obj->id;
         $result = $this->db->query($sql);
         if($result === false) {
-            trigger_error(__METHOD__ . ' DB ERROR msqli query on update: ' , E_USER_ERROR);
+            error_log(__METHOD__ . ' DB ERROR msqli query on update: ' );
             return false;
         }
     }
@@ -96,7 +85,7 @@ Class Database implements Cruds {
         $sql = "DELETE FROM `{$this->table_name}` WHERE `id` = " . $id;
         $result = $this->db->query($sql);
         if ($result == false) {
-            trigger_error(__METHOD__ . 'ERROR mysqli query : ' . $sql, E_USER_ERROR);
+            error_log(__METHOD__ . 'ERROR mysqli query : ' . $sql);
             return false;
         } else {
             return true;
@@ -108,27 +97,32 @@ Class Database implements Cruds {
             $sql = "SELECT * FROM `{$this->table_name}` WHERE `id` = '" . $id . "'";
             $result = $this->db->query($sql);
             if ($result == false) {
-                trigger_error(__METHOD__ . 'ERROR mysqli query : ' . $sql, E_USER_ERROR);
+                error_log(__METHOD__ . 'ERROR mysqli query : ' . $sql);
                 return false;
             }
             return $result->fetch_assoc();
         } else {
-            trigger_error(__METHOD__ . 'ERROR Invalid input : ', E_USER_WARNING);
+            error_log(__METHOD__ . 'ERROR Invalid input : ');
             return false;
         }
     }
 
-    public function getCollection (){        
+    public function get_all (){        
             $sql = "SELECT * FROM `{$this->table_name}` ORDER BY id DESC";
             $result = $this->db->query($sql);
             if($result === false) {
-                trigger_error(__METHOD__ . 'ERROR mysqli query : '.$sql , E_USER_ERROR);
+                error_log(__METHOD__ . 'ERROR mysqli query : '.$sql );
                 return false;
             }
             $rows = array();
             while ($row = $result->fetch_assoc() ) {
                 $rows[] = $row;
             }
+            return $rows;
+    }
+    
+    public function getCollection (){        
+            $rows = $this->get_all();
             return $rows;
     }
 
